@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebWorker Message Passing Test</title>
+  <script type="text/javascript" src="http://rsvpjs-builds.s3.amazonaws.com/rsvp-latest.js"></script>
+  <script type="text/javascript" src="main.js"></script>
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+  <link rel="stylesheet" type="text/css" href="main.css">
+</head>
+<body class="container-fluid">
+<h1>Worker Message Passing Test</h1>
+<div class="row">
+  <div class="col-xs-12 col-sm-4">
+    <h2>Setup</h2>
+    <p>
+      These represent the available features.
+    </p>
+    <ul id="test-setup"></ul>
+  </div>
+  <div class="col-xs-12 col-sm-8">
+    <h2>Test Results</h2>
+    <p>
+      These tests can take up to 2 or 3 minutes to complete depending on your browser.
+      Times are measured with `window.performance.now` and averaged over 1000 runs.
+      Each test suite is run 10 times.
+    </p>
+    <p>
+      The "Simple" test has a payload of 100 strings in an array within a wrapper object.
+      The "Complex" test has a payload of 100 objects in an array within a wrapper object.
+    </p>
+    <p>
+      Each test measures round trips: e.g. the time it takes to serialize, send, receive a
+      response, and parse the response.  This means this test is biased towards operations
+      that expect a response, while many good setups communicate only worker to main thread.
+      A fair test would test the main thread overhead of processing a response.
+    </p>
+    <h3>Final Results</h3>
+    <ul id="test-results-final"></ul>
+    <h3>Per Run Results</h3>
+    <ul id="test-results-inline"></ul>
+  </div>
+</div>
+<script type="text/javascript">
+  var SetupDiv = document.getElementById('test-setup');
+  var InlineResultsDiv = document.getElementById('test-results-inline');
+  var FinalResultsDiv = document.getElementById('test-results-final');
+
+  window.TestInstance = new WorkerTest({
+    log: function(msg) {
+      var li = document.createElement('li');
+      li.innerHTML = (msg.data.type ? '<em>('+ msg.data.type.toUpperCase() +')</em> ' : '') + '<strong>' + msg.data.label + ':</strong> ' + msg.data.value;
+
+      if (msg.type === 'result') {
+        InlineResultsDiv.appendChild(li);
+      } else if (msg.type === 'final-result') {
+        FinalResultsDiv.appendChild(li);
+      } else {
+        SetupDiv.appendChild(li);
+      }
+    }
+  });
+</script>
+</body>
+</html>

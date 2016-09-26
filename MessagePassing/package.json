@@ -1,0 +1,10 @@
+{
+  "name": "webworker-performance",
+  "version": "0.0.0",
+  "dependencies": {
+    "rsvp": "3.2.1"
+  },
+  "devDependencies": {
+    "express": "^4.13.4"
+  }
+}
