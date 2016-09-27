@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <title>WebGL Matrix Benchmark</title>
+
+    <!-- Common Utilities -->
+    <script type="text/javascript" src="sprintf.js"></script>
+
+    <!-- Graphing Utilities -->
+    <link type="text/css" rel="stylesheet" href="flotr/flotr.css"/>
+    <script type="text/javascript" src="flotr/lib/prototype.js"></script>
+    <script type="text/javascript" src="flotr/lib/canvas2image.js"></script>
+    <script type="text/javascript" src="flotr/lib/canvastext.js"></script>
+    <script type="text/javascript" src="flotr/flotr.js"></script>
+
+    <!-- Table Utilities -->
+    <link type="text/css" rel="stylesheet" href="table/table.css"/>
+    <script type="text/javascript" src="table/fastinit.js"></script>
+    <script type="text/javascript" src="table/tablesort.js"></script>
+    <script type="text/javascript" src="js/test-helper.js"></script>
+
+    <!-- Benchmarking utilities -->
+    <script type="text/javascript">
+
+      testData = {};
+      testSets = [];
+      testSetIndex = 0;
+
+      function debuggerLog(obj) {
+        if (window.console && window.console.log) {
+          window.console.log(obj);
+        }
+      }
+
+      function log(html) {
+        document.getElementById('logDiv').innerHTML += html + '<br/><br/>'
+      }
+
+      function logTitle(title) {
+        document.getElementById('logDiv').innerHTML +=
+        '=============================================<br/>' +
+        '<b>' + title + '</b><br/>' +
+        '=============================================' + '<br/><br/>'
+      }
+
+      function preTest(library, f, testInfo) {
+        // Repeats each benchmark multiple times to smooth out anomalies
+        // Also tracks min and max times
+
+        if(!f) {
+          return;
+        }
+
+        var internalRunCount = 5;
+        testInfo.iframe.contentWindow.TestHelper.resetPseudoRandom();
+
+        var data = f(internalRunCount, 1, 1000);
+        return data.result;
+      }
+
+      // Adds a test
+      function testSet(name, tests) {
+        testData[name] = {};
+        testSets.push({name: name, tests: tests});
+      }
+
+      function runTestSet(name, tests) {
+        setTimeout(function() {
+          logTitle(name);
+          var results = [];
+          var baseResult = null;
+          for(var i = 0; i < tests.length; ++i) {
+            var test = tests[i];
+            var result = preTest(test.library, test.test, test.testInfo);
+            results.push(result);
+            if (!baseResult && result) {
+              baseResult = result;
+            }
+            var library = test.library;
+            var data = TestHelper.test(library, test.test, testData[name]);
+            testData[name][library] = data;
+            if (data.avg === null) {
+              log('<i>' + library + ' Unsupported</i>');
+            } else {
+              log('<i>' + library + '</i> - Avg: <b>' + data.avg + ' iterations per second</b>, Min: ' + data.min + ' iterations per second, Max: ' + data.max + ' iterations per second');
+            }
+          }
+
+          // Compare the results to make sure we are testing the same thing
+          for (var i = 0; i < results.length; ++i) {
+            if (results[i] && !Compare(baseResult, results[i])) {
+              debuggerLog(name);
+              debuggerLog(tests[i].library);
+              debuggerLog(baseResult);
+              debuggerLog(results[i]);
+              log('<strong>' + tests[i].library + ': results do NOT match!!!</strong>');
+              testData[name][tests[i].library].bad = true;
+            }
+          }
+          plotBenchmarks();
+          updateTableData();
+          setTimeout(function() {
+            runNextTest();
+          }, 100);
+        }, 1);
+      }
+
+      function runNextTest() {
+        if (testSetIndex < testSets.length) {
+          var set = testSets[testSetIndex++];
+          runTestSet(set.name, set.tests);
+        }
+      }
+
+      var kEpsilon = 0.001;
+      function Compare(a, b, pre) {
+        if (b.m11) {
+          b = [
+            b.m11, b.m12, b.m13, b.m14,
+            b.m21, b.m22, b.m23, b.m24,
+            b.m31, b.m32, b.m33, b.m34,
+            b.m41, b.m42, b.m43, b.m44
+          ];
+        } else if (b.elements) {
+          b = b.elements;
+        }
+        return CompareInner(a, b, '');
+
+        function CompareInner(a, b, pre) {
+          // Check if array.
+          if (typeof(a) === 'number') {
+            if (typeof(b) !== 'number') {
+              return false;
+            }
+            var diff =Math.abs(a - b);
+            if (diff > kEpsilon) {
+              log('<strong>Mismatch: ' + pre + ' ' + a + ' != ' + b + ' diff = ' + diff + '</strong>');
+              return false;
+            }
+          } else if (a.length) {
+            if (a.length !== b.length) return false;
+            for (var i = 0; i < a.length; ++i) {
+              if (!Compare(a[i], b[i], pre + '[' + i.toString() + ']')) return false
+            }
+          } else for (var key in a) {
+            if (!Compare(a[key], b[key], pre + '[' + key + ']')) return false;
+          }
+          return true;
+        }
+      }
+
+    </script>
+
+
+    <style type="text/css">
+      body {
+        font: 0.8em Verdana,sans-serif;
+      }
+      strong {
+        color: red;
+      }
+      iframe {
+        width: 1px;
+        height: 1px;
+      }
+    </style>
+  </head>
+  <body>
+    <p>
+      This page benchmarks the performance of a collection of matrix libraries most of which are intended for use with WebGL:<br>
+      <a href="https://github.com/toji/gl-matrix">glMatrix</a> (v1.2, 2011-12-13), 
+      <a href="http://code.google.com/p/webgl-mjs/">mjs</a> (rev 16, 2010-12-15),
+      CanvasMatrix, 
+      <a href="http://code.google.com/p/ewgl-matrices/">EWGL_math</a> (rev 32, 2011-03-15),
+      the math utilities in Google's <a href="http://closure-library.googlecode.com/">Closure</a> (svn rev: 1364, 2011-11-3),
+      <a href="https://github.com/greggman/tdl">tdl</a> (commit: 59d484f, 2011-06-03), and
+      <a href="http://sylvester.jcoglan.com/">Sylvester</a> (v0.1.3, 2007-07-05).<br>
+      Benchmarks for each library are run in an iframe. Results measure millions of iterations per second of the target operation.<br/>
+    </p>
+    <div id="graph" style="width:900px;height:400px;margin:10px"></div>
+    <div id="tablediv" style="font-size:85%;width:800px;margin:10px">
+      <table id='data-table' class='sortable'>
+        <thead id="data-table-head">
+          <tr></tr>
+        </thead>
+        <tbody id="data-table-body"></tbody>
+      </table>
+    </div>
+    
+    <br/><br/>
+    <div id="logDiv"></div>
+
+    <!-- Benchmarks -->
+    <script type="text/javascript">
+
+      testURLs = [
+        {name: 'glMatrix',     url: 'libs/glMatrix/glMatrix.html'        },
+        {name: 'mjs',          url: 'libs/mjs/mjs.html'                  },
+        {name: 'CanvasMatrix', url: 'libs/CanvasMatrix/CanvasMatrix.html'},
+        {name: 'EWGL',         url: 'libs/EWGL_math/EWGL_math.html'      },
+        {name: 'TDLMath',      url: 'libs/tdl/tdl-math.html'             },
+        {name: 'TDLFast',      url: 'libs/tdl/tdl-fast.html'             },
+        {name: 'closure',      url: 'libs/closure/closure.html'          },
+        {name: 'Sylvester',    url: 'libs/Sylvester/Sylvester.html'      }
+      ];
+
+      var waiting = 1;
+
+      function childLoaded() {
+        --waiting;
+        if (waiting == 0) {
+          debuggerLog("done loading");
+          gatherTests();
+        }
+      }
+
+      function testMain() {
+        // make all the iframes.
+        for (var ii = 0; ii < testURLs.length; ++ii) {
+          ++waiting;
+          var testInfo = testURLs[ii];
+          var iframe = document.createElement('iframe');
+          iframe.setAttribute('src', testInfo.url);
+          document.body.appendChild(iframe);
+          testInfo.iframe = iframe;
+        }
+        childLoaded();
+      }
+
+      function gatherTests() {
+        var sets = {};
+        for (var ii = 0; ii < testURLs.length; ++ii) {
+          var testInfo = testURLs[ii];
+          var tests = testInfo.iframe.contentWindow.tests;
+          for (var testName in tests) {
+            if (!sets[testName]) {
+              sets[testName] = [];
+            }
+            sets[testName].push({
+              library: testInfo.name,
+              test: tests[testName].test,
+              testInfo: testInfo
+            });
+          }
+        }
+
+        for (var testName in sets) {
+          testSet(testName, sets[testName]);
+        }
+        plotBenchmarks();
+        createTableData();
+        setTimeout(runNextTest, 100);
+      }
+
+      var colors = [
+        '#ff0000',
+        '#4444ff',
+        '#00dd00',
+        '#cc00cc',
+        '#ee6600',
+        '#00ccbb',
+        '#990000',
+        '#110077',
+        '#118800',
+        '#770099',
+        '#aa4400',
+        '#008877'
+      ];
+
+      function plotBenchmarks() {
+          var datasets = [];
+          var benchmarks = [];
+          var benchmarkIndex, libraryIndex;
+          benchmarkIndex = 0;
+          var x_axis_tics = [];
+          for (benchmark in testData) {
+            benchmarks.push(benchmark);
+            libraryIndex = 0;
+            for (library in testData[benchmark]) {
+              if (!datasets[libraryIndex]) {
+                datasets.push({});
+                datasets[libraryIndex]['data'] = [];
+                datasets[libraryIndex]['label'] = library;
+                datasets[libraryIndex]['color'] = colors[libraryIndex];
+                datasets[libraryIndex]['lines'] = { show: true };
+                datasets[libraryIndex]['points'] = { show: true };
+              }
+              datasets[libraryIndex]['data'].push([benchmarkIndex, testData[benchmark][library].avg / 1000000]);
+              libraryIndex++;
+            }
+            benchmarkIndex++;
+          }
+          for(i = 0; i < benchmarks.length; i++) {
+            x_axis_tics.push([i, benchmarks[i]])
+          }
+          var f = Flotr.draw($('graph'), datasets,
+            {
+              xaxis:{
+                labelsAngle: 60,
+                ticks: x_axis_tics,
+                title: 'Benchmark Operation',
+                noTics: benchmarks.length,
+                min: 0, max: benchmarks.length - 1,
+              },
+              yaxis:{ title: 'Iterations Per Second (x1000000)', min: 0, max: 40 },
+              title: "WebGL Matrix Library Benchmark",
+              subtitle: "Millions of iterations per second averaged over 10 runs (higher is better)",
+              grid:{ verticalLines: true, backgroundColor: 'white' },
+              HtmlText: false,
+              legend: { position: 'nw' },
+              mouse:{
+                track: true,
+                lineColor: 'purple',
+                relative: true,
+                position: 'nw',
+                sensibility: 1, // => The smaller this value, the more precise you've to point
+                trackDecimals: 1,
+                trackFormatter: function(obj) {
+                  return obj.series.label + ':' + benchmarks[Number(obj.x)] +  ', ' + obj.y
+                }
+              },
+              crosshair:{ mode: 'xy' }
+            }
+          );
+      };
+
+      var data_table_head = document.getElementById("data-table-head");
+      var data_table_body = document.getElementById("data-table-body");
+
+      var libraries = ["glMatrix", "mjs", "CanvasMatrix", "EWGL", "TDLMath",  "TDLFast", "closure", "Sylvester"];
+
+      function library_to_id(library) {
+        return library.toLowerCase().replace(/\W/g, '_');
+      }
+
+      function createTableData() {
+          var row, data, list, item, header;
+          row = document.createElement('tr');
+          header = document.createElement('th');
+          header.className = "text sortcol";
+          header.textContent = "Library";
+          row.appendChild(header);
+          for(benchmark in testData) {
+            header = document.createElement('th');
+            header.className = "number sortcol";
+            header.textContent = benchmark;
+            row.appendChild(header);
+          };
+          header = document.createElement('th');
+          header.className = "number sortcol sortfirstdesc";
+          header.textContent = "Average";
+          row.appendChild(header);
+          data_table_head.deleteRow(0)
+          data_table_head.appendChild(row);
+          for (i = 0; i < libraries.length; i++) {
+            row = document.createElement('tr');
+            row.id = libraries[i] + '_row';
+            data = document.createElement('td');
+            data.style.backgroundColor = colors[i];
+            data.style.color = '#ffffff';
+            data.style.fontWeight = 'normal';
+            data.style.fontFamily = 'Arial Black';
+            data.textContent = libraries[i];
+            row.appendChild(data);
+            for(benchmark in testData) {
+              data = document.createElement('td');
+              data.id = benchmark + '_' + library_to_id(libraries[i]) + '_data'
+              data.textContent = "";
+              row.appendChild(data);
+            };
+            data = document.createElement('td');
+            data.id = library_to_id(libraries[i]) + '_ave__data'
+            data.textContent = "";
+            row.appendChild(data);
+            data_table_body.appendChild(row);
+         };
+      };
+
+      function updateTableData() {
+        var row, data, value, totals = {}, counts = {};
+        for(var benchmark in testData) {
+          var bestLibraries;
+          var bestIPS = -1;
+          for (var library in testData[benchmark]) {
+            var id = benchmark + '_' + library_to_id(library) + '_data';
+            data = document.getElementById(id);
+            value = testData[benchmark][library].avg;
+            if (typeof(value) === "number") {
+              value = value / 1000000;
+              data.textContent = sprintf("%2.2f", value);
+              totals[library] = value + (totals[library] || 0);
+              counts[library] = 1 + (counts[library] || 0);
+              if (bestIPS < 0 || value > bestIPS) {
+                bestIPS = value;
+                bestLibraries = [library];
+              } else if (value == bestIPS) {
+                bestLibraries.push(library);
+              }
+            } else {
+              data.textContent = value;
+            }
+            if (testData[benchmark][library].bad) {
+              data.textContent += " (bad)";
+              data.style.backgroundColor = '#fcc';
+            }
+          }
+          if (bestIPS > 0) {
+            for (var i = 0; i < bestLibraries.length; ++i) {
+              var library = bestLibraries[i];
+              data = document.getElementById(benchmark + '_' + library_to_id(library) + '_data');
+              data.style.backgroundColor = '#acf';
+            }
+          }
+        }
+        for (var library in totals) {
+          if (counts[library]) {
+            data = document.getElementById(library_to_id(library) + '_ave__data');
+            data.textContent = sprintf("%2.2f", totals[library] / counts[library]);
+          }
+        }
+        SortableTable.load();
+      };
+
+    </script>
+    <script type="text/javascript">
+     window.onload=function() {
+       testMain();
+      }
+    </script>
+  </body>
+</html>

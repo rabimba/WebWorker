@@ -67,4 +67,17 @@ A worker doesnt have access to DOM eliments. So rendering cannot be done using w
 
 ## Data Transfer
 
-1. Serializing data to string value. In this case data gets copied
+1. Serializing data to string value. In this case data gets copied multiple times [1]
+2. Using Structured Cloning Algorithm [2][MDN]
+3. Transferring ownership of an object.Once you transfer away an object to a Worker, it's empty or inaccessible in the originating location -- that eliminates the hazards of threaded programming over a shared scope. Of course, transfer of ownership can go in both directions. [3] There really isn't much you need to do to opt into a Transferable Object; any data structure that implements the Transferable interface [4][Transferable API]
+
+
+## Things to keep an eye out for
+
+Shared buffer: https://www.youtube.com/watch?v=-xNZYr40QOk&t=14m18s
+Shared resources for WebGL: http://typedarray.org/concurrency-in-javascript/
+
+[1]:https://nolanlawson.com/2016/02/29/high-performance-web-worker-messages/
+[3]:http://updates.html5rocks.com/2011/12/Transferable-Objects-Lightning-Fast
+[MDN]:https://developer.mozilla.org/en-US/docs/Web/Guide/API/DOM/The_structured_clone_algorithm
+[Transferable API]:https://developer.mozilla.org/en-US/docs/Web/API/Transferable
