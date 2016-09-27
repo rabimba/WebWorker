@@ -1,6 +1,6 @@
 # Roadmap
 
-- [] Study the limitations of Web Worker
+- [ ] Study the limitations of Web Worker
 - [ ] Come up with a way to measure becnhmarks
 - [ ] Come up with a way to capture cross browser and cross operation system benchmarks
 - [ ] Make the demo/benchmarks as granular as possible
