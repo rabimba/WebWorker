@@ -1,7 +1,5 @@
 /**
- * Firefox Web Workers Example v1.4.0
- *
- * http://pmav.eu/stuff/javascript-webworkers
+ * Firefox Web Workers Example
  *
  * This example calculates a^b % c using N Web Wokers.
  *
